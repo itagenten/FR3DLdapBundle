@@ -2,12 +2,16 @@
 
 namespace FR3D\LdapBundle\Security\Authentication;
 
+use FOS\UserBundle\Model\User;
+use FOS\UserBundle\Model\UserManagerInterface;
 use FR3D\LdapBundle\Ldap\LdapManagerInterface;
+use FR3D\LdapBundle\Security\User\LdapUserProvider;
 use Symfony\Component\Security\Core\Authentication\Provider\UserAuthenticationProvider;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AuthenticationServiceException;
 use Symfony\Component\Security\Core\Exception\BadCredentialsException;
 use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
+use Symfony\Component\Security\Core\User\ChainUserProvider;
 use Symfony\Component\Security\Core\User\UserCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -25,20 +29,34 @@ class LdapAuthenticationProvider extends UserAuthenticationProvider
     private $ldapManager;
 
     /**
+     * @var mixed
+     */
+    private $userManager;
+
+    /**
+     * @var bool
+     */
+    private $updateUser;
+
+    /**
      * Constructor.
      *
-     * @param UserCheckerInterface  $userChecker                An UserCheckerInterface interface
-     * @param string                $providerKey                A provider key
-     * @param UserProviderInterface $userProvider               An UserProviderInterface interface
-     * @param LdapManagerInterface  $ldapManager                An LdapProviderInterface interface
-     * @param bool                  $hideUserNotFoundExceptions Whether to hide user not found exception or not
+     * @param UserCheckerInterface $userChecker An UserCheckerInterface interface
+     * @param string $providerKey A provider key
+     * @param UserProviderInterface $userProvider An UserProviderInterface interface
+     * @param LdapManagerInterface $ldapManager An LdapProviderInterface interface
+     * @param UserManagerInterface $userManager
+     * @param bool $hideUserNotFoundExceptions Whether to hide user not found exception or not
+     * @param bool $updateUser
      */
-    public function __construct(UserCheckerInterface $userChecker, $providerKey, UserProviderInterface $userProvider, LdapManagerInterface $ldapManager, $hideUserNotFoundExceptions = true)
+    public function __construct(UserCheckerInterface $userChecker, $providerKey, UserProviderInterface $userProvider, LdapManagerInterface $ldapManager, UserManagerInterface $userManager, $hideUserNotFoundExceptions = true, $updateUser = false)
     {
         parent::__construct($userChecker, $providerKey, $hideUserNotFoundExceptions);
 
         $this->userProvider = $userProvider;
         $this->ldapManager = $ldapManager;
+        $this->userManager = $userManager;
+        $this->updateUser = $updateUser;
     }
 
     /**
@@ -52,7 +70,21 @@ class LdapAuthenticationProvider extends UserAuthenticationProvider
         }
 
         try {
+            /** @var User $user */
             $user = $this->userProvider->loadUserByUsername($username);
+
+            if ($this->updateUser && $this->userProvider instanceof ChainUserProvider) {
+
+                /** @var ChainUserProvider $userProvider */
+                $userProvider = $this->userProvider;
+                foreach ($userProvider->getProviders() as $provider) {
+                    if ($provider instanceof LdapUserProvider) {
+                        $ldapUser = $provider->loadUserByUsername($username);
+                        $user->setRoles($ldapUser->getRoles());
+                        $this->userManager->updateUser($user);
+                    }
+                }
+            }
 
             return $user;
         } catch (UsernameNotFoundException $notFound) {

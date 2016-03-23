@@ -3,6 +3,8 @@
 namespace FR3D\LdapBundle\Tests\Security\Authentication;
 
 use Exception;
+use FOS\UserBundle\Entity\UserManager;
+use FOS\UserBundle\Model\UserManagerInterface;
 use FR3D\LdapBundle\Security\Authentication\LdapAuthenticationProvider;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
@@ -32,6 +34,11 @@ class LdapAuthenticationProviderTest extends \PHPUnit_Framework_TestCase
     protected $ldapManager;
 
     /**
+     * @var UserManagerInterface|\PHPUnit_Framework_MockObject_MockObject
+     */
+    protected $userManager;
+
+    /**
      * Sets up the fixture, for example, opens a network connection.
      * This method is called before a test is executed.
      */
@@ -42,9 +49,11 @@ class LdapAuthenticationProviderTest extends \PHPUnit_Framework_TestCase
         $providerKey = 'provider_key';
         $this->userProvider = $this->getMock('Symfony\Component\Security\Core\User\UserProviderInterface');
         $this->ldapManager = $this->getMock('FR3D\LdapBundle\Ldap\LdapManagerInterface');
+        $this->userManager = $this->getMock(UserManager::class);
         $hideUserNotFoundExceptions = false;
+        $updateUser = false;
 
-        $this->ldapAuthenticationProvider = new LdapAuthenticationProvider($userChecker, $providerKey, $this->userProvider, $this->ldapManager, $hideUserNotFoundExceptions);
+        $this->ldapAuthenticationProvider = new LdapAuthenticationProvider($userChecker, $providerKey, $this->userProvider, $this->ldapManager, $this->userManager, $hideUserNotFoundExceptions, $updateUser);
     }
 
     /**

@@ -60,6 +60,7 @@ trait ConfigurationTrait
                     'user_method' => 'setUsername',
                 ],
             ],
+            'update' => false,
         ];
     }
 
